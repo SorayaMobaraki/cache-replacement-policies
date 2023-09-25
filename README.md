@@ -34,11 +34,12 @@ You need to put these lines in the Dcache because they are necessary to compare 
 
 In the Directory you need to print this lines, becuse for our extraction and then comparation wee need them. You can also find the final Directory code [here](https://gite.lirmm.fr/smobaraki/l2cache/-/blob/master/Directory.scala?ref_type=heads).
 
-  when(io.result.valid) {
-    when (missCond) {
-      printf("VictimWayL2:%d, wayMatch: %d, io.result.bits.hit: %d, io.result.bits.way:%d, set:%d, array_rep:%d\n", victimWay, wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, array_rep)
-    }.otherwise{
-      printf("HitWay:%d, wayMatch: %d, io.result.bits.hit:%d, io.result.bits.way:%d, set:%d, array_rep:%d\n", OHToUInt(hits), wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, array_rep)
+
+    when(io.result.valid) {
+        when (missCond) {
+        printf("VictimWayL2:%d, wayMatch: %d, io.result.bits.hit: %d, io.result.bits.way:%d, set:%d, array_rep:%d\n", victimWay, wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, array_rep)
+        }.otherwise{
+        printf("HitWay:%d, wayMatch: %d, io.result.bits.hit:%d, io.result.bits.way:%d, set:%d, array_rep:%d\n", OHToUInt(hits), wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, array_rep)
+        }
     }
-  }
 
