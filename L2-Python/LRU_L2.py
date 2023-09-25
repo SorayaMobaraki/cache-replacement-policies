@@ -3,29 +3,6 @@ import re
 from collections import OrderedDict
 
 
-# def extract_addresses():
-#     # Regular expressions to match the patterns "SourceA:address:" and "L1D -> L2: ReleaseData: addr ="
-#     sourceA_pattern = re.compile(r"SourceA:address:(0x[0-9a-fA-F]+)")
-#     releaseData_pattern = re.compile(r"L1D -> L2: ReleaseData: addr = (0x[0-9a-fA-F]+)")
-
-#     # Open the input file for reading and the output file for writing
-#     with open("loop-ROI.txt", 'r') as infile, open("addresses.txt", 'w') as outfile:
-#         last_address = None  # Store the last seen address for "L1D -> L2: ReleaseData: addr ="
-#         for line in infile:
-#             # Check for SourceA pattern
-#             sourceA_match = sourceA_pattern.search(line)
-#             if sourceA_match:
-#                 outfile.write(sourceA_match.group(1) + '\n')
-            
-#             # Check for ReleaseData pattern
-#             releaseData_match = releaseData_pattern.search(line)
-#             if releaseData_match:
-#                 current_address = releaseData_match.group(1)
-#                 if current_address != last_address:  # Check if the current address is different from the last seen address
-#                     outfile.write(current_address + '\n')
-#                 last_address = current_address
-
-
 #=======================================================================================
 # Extract Address& Hit and Victim Way
 #=======================================================================================         
@@ -105,8 +82,7 @@ with open("address_with_hitway.txt", "r") as file:
             set_value = int(way_info.split("Set: ")[1])
             address_to_victimwayl2[address] = (victimwayl2_value, set_value)
 
-
-
+#=======================================================================================
 
 address_to_hitway = {}
 #Find the address of each HitWay that has been extracted
@@ -184,6 +160,10 @@ class Memory:
             _, way = hit_key
             self.lru[details['set']].hit(way)
             # print(f"Hit occurred for address {address}. Set: {details['set']}, Hitway: {way}, LRU state: {lru_state}")
+
+            #===============================================
+            #Check if the Verilator HitWay is equal to Python
+            #===============================================
             if address in address_to_hitway:
                 expected_hit_way = address_to_hitway[address]
                 if expected_hit_way == way:
@@ -207,18 +187,10 @@ class Memory:
             current_set[(details['tag'], replace_way)] = details['tag']
             self.lru[details['set']].miss()  # Inform LRU of a miss
             
-            # line = self.victim_hit_file.readline()
-            # if "VictimWayL2" in line:
-            #     victim_way = int(line.split("VictimWayL2:")[-1].strip())
-                
-            #     # Compare replace_way with victim_way
-            #     if replace_way == victim_way:
-            #         print(f"Address: {address}, Set: {details['set']}. Python Replace way ({replace_way}) matches with extracted VictimWayL2 in Verilator ({victim_way}).")
-            #     else:
-            #         print(f"Address: {address}, Set: {details['set']}. Python Replace way ({replace_way}) does not match with extracted VictimWayL2 in Verilator ({victim_way}).")
-            
-        
-            # print(f"Miss occurred for address {address}. Set: {details['set']}, Replacing way: {replace_way}, LRU state: {lru_state}")
+
+            #===============================================
+            #Check if the Verilator VictimWay is equal to Python
+            #===============================================
             
             # if address in address_to_victimwayl2:
             #     expected_victim_way = address_to_victimwayl2[address][0]
@@ -228,27 +200,13 @@ class Memory:
             #         print(f"Address: {address}, Set: {details['set']}, Verilator VictimWayL2: {expected_victim_way}, Python replace_way: {replace_way} -> Not Equal")
                     
                 
-            # # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}")
+            # # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}, LRU state: {lru_state}")
             return "Miss", replace_way, eviction_status
             
 
 
-
-def extract_HitOrMiss(filename="loop-ROI.txt"):
-    with open(filename, 'r') as f:
-        content = f.read()
-
-        victimwayl2_match = re.search(r'VictimWayL2:\s*(\d+)', content)
-        hitway_match = re.search(r'HitWay:\s*(\d+)', content)
-
-        victimwayl2_value = int(victimwayl2_match.group(1)) if victimwayl2_match else None
-        hitway_value = int(hitway_match.group(1)) if hitway_match else None
-
-        return victimwayl2_value, hitway_value
-
-
 #=======================================================================================
-#
+#  TrueLRU
 #=======================================================================================
 class TrueLRU:
 
@@ -335,9 +293,10 @@ class TrueLRU:
     def replace(self):
         return self.way()
 
+   
             
 
-
+#=======================================================================================
 
 memory = Memory()
 
