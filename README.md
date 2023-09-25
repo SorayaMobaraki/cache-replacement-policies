@@ -2,7 +2,7 @@
 In this repository You can find the Python codes for [L2cache](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/L2cache.py?ref_type=heads), [Extract addresses](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/ExtractAddress.py?ref_type=heads) from the Output, [LRU code that transfered from Chisel](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/TrueLRU.py?ref_type=heads), L2cahe with [LRU in OrderDict with L2 cache](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU-OrderedDict.py?ref_type=heads), and also [transfered_LRU of the Chisel with Extract address and Cache inside](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU_L2.py?ref_type=heads).
 
 
-From the ablove codes you just need the [LRU_L2](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU_L2.py?ref_type=heads).
+From the above codes, you just need the [LRU_L2](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU_L2.py?ref_type=heads) to extract and compare.
 
 
 
