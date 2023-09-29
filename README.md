@@ -2,7 +2,7 @@
 In this repository You can find the Python codes for [L2cache](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/L2cache.py?ref_type=heads), [Extract addresses](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/ExtractAddress.py?ref_type=heads) from the Output, [LRU code that transfered from Chisel](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/TrueLRU.py?ref_type=heads), L2cahe with [LRU in OrderDict with L2 cache](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU-OrderedDict.py?ref_type=heads), and also [transfered_LRU of the Chisel with Extract address and Cache inside](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU_L2.py?ref_type=heads).
 
 
-From the above codes, you just need the [LRU_L2](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU_L2.py?ref_type=heads) to extract and compare.
+From the above codes, you just need the [LRU_L2](https://gite.lirmm.fr/smobaraki/phython_code_to_compare_verilator_output/-/blob/main/L2-Python/LRU_L2.py?ref_type=heads) to extract and compare. In this Python code you can see the ways that have miss or hit, and also can compare the LRU output in Verilator by Python one.
 
 
 
@@ -28,6 +28,25 @@ You need to put these lines in the Dcache because they are necessary to compare 
       printf("    L1D -> L2: ReleaseData: addr = 0x%x, set:%d, data = 0x%x\n", tl_out.c.bits.address, (tl_out.a.bits.address >> 6) & "b00001111111111".U, tl_out.c.bits.data)
     }
 
+### In the SinkA.scala and SinkC.scala
+
+you need to put this lines to print in these two files.
+
+SinkA:
+
+  
+  when (io.pb_pop.fire() && io.pb_pop.bits.last) {
+    lists_clr := UIntToOH(io.pb_pop.bits.index, params.putLists)
+  }
+
+
+SinkC:
+
+    when (io.rel_pop.fire() && io.rel_pop.bits.last) {
+      lists_clr := UIntToOH(io.rel_pop.bits.index, params.relLists)
+    }
+
+
 
 
 ### In the Inclusivecache/Directory
@@ -35,11 +54,14 @@ You need to put these lines in the Dcache because they are necessary to compare 
 In the Directory you need to print this lines, becuse for our extraction and then comparation wee need them. You can also find the final Directory code [here](https://gite.lirmm.fr/smobaraki/l2cache/-/blob/master/Directory.scala?ref_type=heads).
 
 
-    when(io.result.valid) {
-        when (missCond) {
-        printf("VictimWayL2:%d, wayMatch: %d, io.result.bits.hit: %d, io.result.bits.way:%d, set:%d, array_rep:%d\n", victimWay, wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, array_rep)
-        }.otherwise{
-        printf("HitWay:%d, wayMatch: %d, io.result.bits.hit:%d, io.result.bits.way:%d, set:%d, array_rep:%d\n", OHToUInt(hits), wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, array_rep)
-        }
+  //Sm
+
+  when(io.result.valid) {
+    when (missCond) {
+      printf("VictimWayL2:%d, wayMatch: %d, io.result.bits.hit: %d, io.result.bits.way:%d, set:%d, tag:%d, lrustate:%d\n", victimWay, wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, readTagReg , array_rep)
+    }.otherwise{
+      printf("HitWay:%d, wayMatch: %d, io.result.bits.hit:%d, io.result.bits.way:%d, set:%d, tag:%d, lrustate:%d\n", OHToUInt(hits), wayMatch, io.result.bits.hit, io.result.bits.way, readSetReg, readTagReg , array_rep)
     }
+  }
+  ///
 
