@@ -8,93 +8,95 @@ from collections import OrderedDict
 #=======================================================================================         
                 
                 
-acquire_pattern = re.compile(r"L1D -> L2: Acquire: addr = (0x[0-9a-fA-F]+)")
-releaseData_pattern = re.compile(r"L1D -> L2: ReleaseData: addr = (0x[0-9a-fA-F]+)")
-hitway_pattern = re.compile(r'HitWay:\s*(\d+)')
-victimwayl2_pattern = re.compile(r'VictimWayL2:\s*(\d+)')
-set_pattern = re.compile(r'set:\s*(\d+)')
-
-def extract_addresses_and_hitways(input_file="loop-ROI.txt", patterns_to_extract=["acquire", "release", "hitway", "victimwayl2"], 
-                                  address_output="addresses.txt", paired_output="address_with_hitway.txt"):
-    
-    with open(input_file, 'r') as infile, \
-         open(address_output, 'w') as outfile1, \
-         open(paired_output, 'w') as outfile2:
-
-        address_queue = []
-        last_address = None
-
-        for line in infile:
-            # Check for Acquire pattern
-            if "acquire" in patterns_to_extract:
-                acquire_match = acquire_pattern.search(line)
-                if acquire_match:
-                    address_queue.append(acquire_match.group(1))
-                    outfile1.write(acquire_match.group(1) + '\n')
-
-            # Check for ReleaseData pattern
-            if "release" in patterns_to_extract:
-                releaseData_match = releaseData_pattern.search(line)
-                if releaseData_match:
-                    current_address = releaseData_match.group(1)
-                    if current_address != last_address:  # Only consider the address if it's different from the last one
-                        address_queue.append(current_address)
-                        outfile1.write(current_address + '\n')
-                    last_address = current_address
-
-            # Check for HitWay and set patterns
-            if "hitway" in patterns_to_extract:
-                hitway_match = hitway_pattern.search(line)
-                set_match = set_pattern.search(line)
-                if hitway_match and set_match and address_queue:
-                    hitway = hitway_match.group(1)
-                    set_number = set_match.group(1)
-                    outfile2.write(f"{address_queue.pop(0)} -> HitWay: {hitway}, Set: {set_number}\n")
-
-            # Check for VictimWayL2 and set patterns
-            if "victimwayl2" in patterns_to_extract:
-                victimwayl2_match = victimwayl2_pattern.search(line)
-                set_match = set_pattern.search(line)
-                if victimwayl2_match and set_match and address_queue:
-                    victimwayl2 = victimwayl2_match.group(1)
-                    set_number = set_match.group(1)
-                    outfile2.write(f"{address_queue.pop(0)} -> VictimWayL2: {victimwayl2}, Set: {set_number}\n")
+# Open the file and read its content
+with open("Loop-ROI.txt", "r") as f:
+    lines = f.readlines()
 
 
+# Regular expression patterns
+source_a_pattern = re.compile(r"SourceA:address:(0x[0-9a-fA-F]+).*set:\s+(\d+).*tag:(\d+)")
+source_c_pattern = re.compile(r"SourceC:address:(0x[0-9a-fA-F]+).*set:\s+(\d+).*tag:(\d+)")
+victim_pattern = re.compile(r"VictimWayL2:(\d+).*set:\s+(\d+).*tag:(\d+),\s*lrustate:\s*(\d+)")
+hit_pattern = re.compile(r"HitWay:(\d+).*set:\s+(\d+).*tag:(\d+),\s*lrustate:\s*(\d+)")
+
+source_a_addresses = {}
+source_c_addresses = {}
+victimway_data = []
+hitway_data = []
+
+# Extracting SourceA and SourceC addresses using regex
+for line in lines:
+    match_a = source_a_pattern.search(line)
+    match_c = source_c_pattern.search(line)
+    if match_a:
+        address, set_val, tag_val = match_a.groups()
+        source_a_addresses[(int(set_val), int(tag_val))] = address
+    if match_c:
+        address, set_val, tag_val = match_c.groups()
+        source_c_addresses[(int(set_val), int(tag_val))] = address
+
+# Re-extracting sequential mapping and addresses using regex
+sequential_mapping = []
+address_only_list = []
+encountered_sets = set()
+
+for line in lines:
+    match_victim = victim_pattern.search(line)
+    match_hit = hit_pattern.search(line)
+    if match_victim:
+        way, set_val, tag_val, lrustate = map(int, match_victim.groups())
+        key = (set_val, tag_val)
+        if key in source_a_addresses:
+            if set_val not in encountered_sets:   #this is to be sure the initial lru state just write in the file
+                encountered_sets.add(set_val)
+                newlrustate = lrustate if lrustate is not None else "Unknown"
+                mapping_str = f"{source_a_addresses[key]} -> VictimWayL2: {way}, Set: {set_val}, Tag: {tag_val}, LRUstate: {newlrustate}"
+            else: 
+                mapping_str = f"{source_a_addresses[key]} -> VictimWayL2: {way}, Set: {set_val}, Tag: {tag_val}"
+            
+            victimway_data.append({
+                'Address': source_a_addresses[key],
+                'VictimWay': way,
+                'Set': set_val,
+                'Tag': tag_val,
+                'LRUstate': newlrustate
+            })
+
+            sequential_mapping.append(mapping_str)
+            address_only_list.append(source_a_addresses[key])
+    if match_hit:
+        way, set_val, tag_val, lrustate = map(int, match_hit.groups())
+        key = (set_val, tag_val)
+        if key in source_c_addresses:
+            if set_val not in encountered_sets:    #this is to be sure the initial lru state just write in the file
+                encountered_sets.add(set_val)
+                newlrustate = lrustate if lrustate is not None else "Unknown"
+                mapping_str = f"{source_c_addresses[key]} -> HitWay: {way}, Set: {set_val}, Tag: {tag_val}, LRUstate: {newlrustate}"
+            else:
+                mapping_str = f"{source_c_addresses[key]} -> HitWay: {way}, Set: {set_val}, Tag: {tag_val}"
+                
+            
+            
+            
+            hitway_data.append({
+                'Address': source_a_addresses[key],
+                'HitWay': way,
+                'Set': set_val,
+                'Tag': tag_val,
+                'LRUstate': newlrustate
+            })
+
+            sequential_mapping.append(mapping_str)
+            address_only_list.append(source_c_addresses[key])
 
 
- 
-#=======================================================================================
+with open("address_with_hitway.txt", "w") as f:
+    for mapping in sequential_mapping:
+        f.write(mapping + "\n")
+with open("addresses.txt", "w") as f:
+    for address in address_only_list:
+        f.write(address + "\n")
 
-extract_addresses_and_hitways()
-
- 
-#=======================================================================================
-
-#Find the address and set of each victimwayl2 that has been extracted
-address_to_victimwayl2 = {}
-
-with open("address_with_hitway.txt", "r") as file:
-    for line in file:
-        if "VictimWayL2" in line:
-            address, way_info = line.strip().split(" -> ")
-            victimwayl2_value = int(way_info.split(": ")[1].split(",")[0])
-            set_value = int(way_info.split("Set: ")[1])
-            address_to_victimwayl2[address] = (victimwayl2_value, set_value)
-
-#=======================================================================================
-
-address_to_hitway = {}
-#Find the address of each HitWay that has been extracted
-with open("address_with_hitway.txt", "r") as file:
-    for line in file:
-        if "HitWay" in line:
-            address, way_info = line.strip().split(" -> ")
-            hitway = int(way_info.split(": ")[1].split(",")[0])
-            set_value = int(way_info.split("Set: ")[1])
-            address_to_hitway[address] = hitway
-
- 
  
 #=======================================================================================
 # MEMORY
@@ -124,11 +126,20 @@ class Memory:
         for i in range(self.set_number):
             self.cache[i] = OrderedDict()
         
-        # Initialize TrueLRU for each set
+       # Initialize TrueLRU for each set
         self.lru = {}
         for i in range(self.set_number):
-            self.lru[i] = TrueLRU(self.ways, 0)  # Starting with state 0 for simplicity
-    
+            initialized = False  # To track if the LRU for set 'i' has been initialized
+            # for m in hitway_data + victimway_data:  # Combine both lists for processing
+            #     if m["Set"] == i:
+            #         initial_state = m['LRUstate'] if m['LRUstate'] is not None else 0
+            #         self.lru[i] = TrueLRU(self.ways, initial_state)
+            #         initialized = True
+            #         break  # break the inner loop once LRU for set 'i' is initialized
+            if not initialized:  # if the LRU for set 'i' was not initialized befor ( in iner loop)
+                self.lru[i] = TrueLRU(self.ways, 0)
+
+            
     @staticmethod
     def log2(x):
         return x.bit_length() - 1
@@ -164,13 +175,21 @@ class Memory:
             #===============================================
             #Check if the Verilator HitWay is equal to Python
             #===============================================
-            if address in address_to_hitway:
-                expected_hit_way = address_to_hitway[address]
-                if expected_hit_way == way:
-                    print(f"Address: {address}, Set: {details['set']}, Verilator HitWay: {expected_hit_way}, Python Hitway: {way} -> Equal")
-                else:
-                    print(f"Address: {address}, Set: {details['set']}, Verilator HitWay: {expected_hit_way}, Python Hitway: {way} -> Not Equal")
-            
+            for data in hitway_data:
+
+                if (data['Address'] == address):
+    
+                #expected_victim_way, expected_set, expected_tag =  address_to_victimwayl2[address]
+
+                    if (data['Set'] == details['set']): 
+                    
+                        if (data['HitWay']  == way):
+                            print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {data['HitWay'] }, Python HitWay: {way} -> Equal")
+                        else:
+                            print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {data['HitWay'] }, Python HitWay: {way} -> Not Equal")
+           
+
+                
             return "Hit", way, ""
         else:
             # On a miss, get the LRU way to replace
@@ -191,16 +210,22 @@ class Memory:
             #===============================================
             #Check if the Verilator VictimWay is equal to Python
             #===============================================
-            
-            # if address in address_to_victimwayl2:
-            #     expected_victim_way = address_to_victimwayl2[address][0]
-            #     if expected_victim_way == replace_way:
-            #         print(f"Address: {address}, Set: {details['set']}, Verilator VictimWayL2: {expected_victim_way}, Python replace_way: {replace_way} -> Equal")
-            #     else:
-            #         print(f"Address: {address}, Set: {details['set']}, Verilator VictimWayL2: {expected_victim_way}, Python replace_way: {replace_way} -> Not Equal")
+           
+            # for data in victimway_data:
+
+            #     if (data['Address'] == address):
+    
+            #     #expected_victim_way, expected_set, expected_tag =  address_to_victimwayl2[address]
+
+            #         if (data['Set'] == details['set']): 
                     
+            #             if (data['VictimWay']  == replace_way):
+            #                 print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Equal")
+            #             else:
+            #                 print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Not Equal")
+                        
                 
-            # # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}, LRU state: {lru_state}")
+            # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}, LRU state: {lru_state}")
             return "Miss", replace_way, eviction_status
             
 
@@ -237,9 +262,9 @@ class TrueLRU:
             lsb += bits_needed
         return moreRecentVec
     
-#=======================================================================================
-#
-#=======================================================================================
+    #=======================================================================================
+    # get_next_state
+    #=======================================================================================
 
     def get_next_state(self, state: int, touch_way: int):
         moreRecentVec = self.extractMRUVec(state)
@@ -264,9 +289,9 @@ class TrueLRU:
         if valid_touch_ways:
             self.state_reg = self.get_next_state(self.state_reg, valid_touch_ways[0]["value"])
             
-#=======================================================================================
-#
-#=======================================================================================
+    #=======================================================================================
+    #get_replace_way
+    #=======================================================================================
     def get_replace_way(self, state):
         moreRecentVec = self.extractMRUVec(state)
         mruWayDec = []
@@ -276,9 +301,9 @@ class TrueLRU:
             mruWayDec.append(upperMoreRecent and lowerMoreRecent)
         return mruWayDec.index(True)
     
-#=======================================================================================
-#
-#=======================================================================================
+    #=======================================================================================
+    #
+    #=======================================================================================
 
     def way(self):
         return self.get_replace_way(self.state_reg)
@@ -300,6 +325,7 @@ class TrueLRU:
 
 memory = Memory()
 
+# extract_addresses_and_hitways()
 
 print(f"Number of blocks: {memory.blocks}")
 
