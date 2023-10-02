@@ -4,41 +4,42 @@ from collections import OrderedDict
 
 
 #=======================================================================================
-# Extract Address& Hit and Victim Way
+# Extract Address & Hit and Victim Way
 #=======================================================================================         
                 
                 
-# Open the file and read its content
+# Open the Verilator output file and read its content
 with open("Loop-ROI.txt", "r") as f:
     lines = f.readlines()
 
 
 # Regular expression patterns
-source_a_pattern = re.compile(r"SourceA:address:(0x[0-9a-fA-F]+).*set:\s+(\d+).*tag:(\d+)")
-source_c_pattern = re.compile(r"SourceC:address:(0x[0-9a-fA-F]+).*set:\s+(\d+).*tag:(\d+)")
+sink_a_pattern = re.compile(r"SinkA:address:(0x[0-9a-fA-F]+).*set:\s+(\d+).*tag:(\d+)")
+sink_c_pattern = re.compile(r"SinkC:address:(0x[0-9a-fA-F]+).*set:\s+(\d+).*tag:(\d+)")
 victim_pattern = re.compile(r"VictimWayL2:(\d+).*set:\s+(\d+).*tag:(\d+),\s*lrustate:\s*(\d+)")
 hit_pattern = re.compile(r"HitWay:(\d+).*set:\s+(\d+).*tag:(\d+),\s*lrustate:\s*(\d+)")
 
-source_a_addresses = {}
-source_c_addresses = {}
+input_addresses = {}
+# source_c_addresses = {}
 victimway_data = []
 hitway_data = []
 
-# Extracting SourceA and SourceC addresses using regex
+# Extracting SinkA and SinkC addresses (as input addresses) using regex
 for line in lines:
-    match_a = source_a_pattern.search(line)
-    match_c = source_c_pattern.search(line)
+    match_a = sink_a_pattern.search(line)
+    match_c = sink_c_pattern.search(line)
     if match_a:
         address, set_val, tag_val = match_a.groups()
-        source_a_addresses[(int(set_val), int(tag_val))] = address
+        input_addresses[(int(set_val), int(tag_val))] = address
     if match_c:
         address, set_val, tag_val = match_c.groups()
-        source_c_addresses[(int(set_val), int(tag_val))] = address
+        input_addresses[(int(set_val), int(tag_val))] = address
 
 # Re-extracting sequential mapping and addresses using regex
 sequential_mapping = []
 address_only_list = []
 encountered_sets = set()
+
 
 for line in lines:
     match_victim = victim_pattern.search(line)
@@ -46,16 +47,20 @@ for line in lines:
     if match_victim:
         way, set_val, tag_val, lrustate = map(int, match_victim.groups())
         key = (set_val, tag_val)
-        if key in source_a_addresses:
-            if set_val not in encountered_sets:   #this is to be sure the initial lru state just write in the file
+        if key in input_addresses:
+            if set_val not in encountered_sets:   #this is to be sure that just the initial lru state write in the file
                 encountered_sets.add(set_val)
                 newlrustate = lrustate if lrustate is not None else "Unknown"
-                mapping_str = f"{source_a_addresses[key]} -> VictimWayL2: {way}, Set: {set_val}, Tag: {tag_val}, LRUstate: {newlrustate}"
+                mapping_str = f"{input_addresses[key]} -> VictimWayL2: {way}, Set: {set_val}, Tag: {tag_val}, LRUstate: {newlrustate}"
             else: 
-                mapping_str = f"{source_a_addresses[key]} -> VictimWayL2: {way}, Set: {set_val}, Tag: {tag_val}"
+                mapping_str = f"{input_addresses[key]} -> VictimWayL2: {way}, Set: {set_val}, Tag: {tag_val}"
             
-            victimway_data.append({
-                'Address': source_a_addresses[key],
+            # with open('address1.txt', 'a') as file:
+            #     file.write(str(input_addresses[key]) + '\n')
+            
+        
+            victimway_data.append({            # a list of dictionary to extract the address, set, tag, and Lru state of the victimway
+                'Address': input_addresses[key],
                 'VictimWay': way,
                 'Set': set_val,
                 'Tag': tag_val,
@@ -63,23 +68,23 @@ for line in lines:
             })
 
             sequential_mapping.append(mapping_str)
-            address_only_list.append(source_a_addresses[key])
+            address_only_list.append(input_addresses[key])
     if match_hit:
         way, set_val, tag_val, lrustate = map(int, match_hit.groups())
         key = (set_val, tag_val)
-        if key in source_c_addresses:
-            if set_val not in encountered_sets:    #this is to be sure the initial lru state just write in the file
+        if key in input_addresses:
+            if set_val not in encountered_sets:    #this is to be sure tht just the initial lru state write in the file
                 encountered_sets.add(set_val)
                 newlrustate = lrustate if lrustate is not None else "Unknown"
-                mapping_str = f"{source_c_addresses[key]} -> HitWay: {way}, Set: {set_val}, Tag: {tag_val}, LRUstate: {newlrustate}"
+                mapping_str = f"{input_addresses[key]} -> HitWay: {way}, Set: {set_val}, Tag: {tag_val}, LRUstate: {newlrustate}"
             else:
-                mapping_str = f"{source_c_addresses[key]} -> HitWay: {way}, Set: {set_val}, Tag: {tag_val}"
+                mapping_str = f"{input_addresses[key]} -> HitWay: {way}, Set: {set_val}, Tag: {tag_val}"
+            # with open('address1.txt', 'a') as file:
+            #     file.write(str(input_addresses[key]) + '\n')
                 
             
-            
-            
-            hitway_data.append({
-                'Address': source_a_addresses[key],
+            hitway_data.append({            # a list of dictionary to extract the address, set, tag, and Lru state of the Hitway
+                'Address': input_addresses[key],
                 'HitWay': way,
                 'Set': set_val,
                 'Tag': tag_val,
@@ -87,10 +92,10 @@ for line in lines:
             })
 
             sequential_mapping.append(mapping_str)
-            address_only_list.append(source_c_addresses[key])
+            address_only_list.append(input_addresses[key])
 
 
-with open("address_with_hitway.txt", "w") as f:
+with open("address_with_hitway.txt", "w") as f:      # Write the input addresses and their tags and set the number. Also, the initial LRU state of each set number
     for mapping in sequential_mapping:
         f.write(mapping + "\n")
 with open("addresses.txt", "w") as f:
@@ -103,7 +108,7 @@ with open("addresses.txt", "w") as f:
 #=======================================================================================                             
 class Memory:
     def __init__(self):
-        # Given specifications
+       
         self.total_size = 512 * 1024  # 512 kBytes
         self.block_size = 64  # Bytes
         self.set_number = 1024
@@ -144,7 +149,7 @@ class Memory:
     def log2(x):
         return x.bit_length() - 1
 
-    def extract(self, address):
+    def extract(self, address):       #extract the addres of new instructions
         address_bin = bin(int(address, 16))[2:].zfill(32)
         
         tag = address_bin[:self.tag_bits]
@@ -163,7 +168,7 @@ class Memory:
         
         lru_state = self.lru[details['set']].state_reg
 
-        # Check for hit
+        ### Check for hit
         hit_keys = [key for key in current_set.keys() if key[0] == details['tag']]
         if hit_keys:
             # there should only be one hit, we take the first key
@@ -175,22 +180,20 @@ class Memory:
             #===============================================
             #Check if the Verilator HitWay is equal to Python
             #===============================================
-            for data in hitway_data:
-
-                if (data['Address'] == address):
-    
-                #expected_victim_way, expected_set, expected_tag =  address_to_victimwayl2[address]
-
-                    if (data['Set'] == details['set']): 
-                    
-                        if (data['HitWay']  == way):
-                            print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {data['HitWay'] }, Python HitWay: {way} -> Equal")
-                        else:
-                            print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {data['HitWay'] }, Python HitWay: {way} -> Not Equal")
+            # for d in hitway_data:
+            #     if d['Address'] == address and d['Set'] == details['set']:
+            #         if d['HitWay'] == way:
+            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Equal")
+            #         else:
+            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Not Equal")
+            #         break  # exit the loop once we've found a match
+            
+            
            
-
-                
+            # print(f"Hit occurred for address {address}. Set: {details['set']}, HitWay: {way}, LRU state: {lru_state}")      # to print when hit happen   
             return "Hit", way, ""
+        
+        ### check for miss
         else:
             # On a miss, get the LRU way to replace
             replace_way = self.lru[details['set']].way()
@@ -206,26 +209,21 @@ class Memory:
             current_set[(details['tag'], replace_way)] = details['tag']
             self.lru[details['set']].miss()  # Inform LRU of a miss
             
-
             #===============================================
             #Check if the Verilator VictimWay is equal to Python
             #===============================================
            
-            # for data in victimway_data:
+            for data in victimway_data:
 
-            #     if (data['Address'] == address):
-    
-            #     #expected_victim_way, expected_set, expected_tag =  address_to_victimwayl2[address]
-
-            #         if (data['Set'] == details['set']): 
-                    
-            #             if (data['VictimWay']  == replace_way):
-            #                 print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Equal")
-            #             else:
-            #                 print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Not Equal")
-                        
+                if (data['Address'] == address) and (data['Set'] == details['set']): 
+                    if (data['VictimWay']  == replace_way):
+                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Equal")
+                    else:
+                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Not Equal")
+                    break 
+               
                 
-            # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}, LRU state: {lru_state}")
+            # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}, LRU state: {lru_state}")     #to print when victim happen
             return "Miss", replace_way, eviction_status
             
 
@@ -242,6 +240,7 @@ class TrueLRU:
 
     def UIntToOH(self, value, width):
         return [1 if i == value else 0 for i in range(width)]
+    
     #---------------------------------------------------------------------------------
     
     def OHToUInt(self, oh_list):
@@ -251,7 +250,6 @@ class TrueLRU:
         return 0
     #---------------------------------------------------------------------------------
 
-    
     def extractMRUVec(self, state):
         state_bin = bin(state)[2:].zfill(self.nBits)  
         moreRecentVec = []
@@ -320,12 +318,11 @@ class TrueLRU:
 
    
             
-
+#=======================================================================================
+#=======================================================================================
 #=======================================================================================
 
 memory = Memory()
-
-# extract_addresses_and_hitways()
 
 print(f"Number of blocks: {memory.blocks}")
 
