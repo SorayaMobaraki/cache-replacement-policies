@@ -107,14 +107,12 @@ with open("addresses.txt", "w") as f:
 # MEMORY
 #=======================================================================================                             
 class Memory:
-    def __init__(self):
-       
+    def __init__(self, policy="PLRU"):
         self.total_size = 512 * 1024  # 512 kBytes
         self.block_size = 64  # Bytes
         self.set_number = 1024
         self.ways = 8  # Set associative
-        
-        
+
         self.victim_hit_file = open("address_with_hitway.txt", "r")
         
         # Calculate number of blocks
@@ -131,18 +129,16 @@ class Memory:
         for i in range(self.set_number):
             self.cache[i] = OrderedDict()
         
-       # Initialize TrueLRU for each set
+        # Initialize PLRUCache for each set
         self.lru = {}
         for i in range(self.set_number):
-            initialized = False  # To track if the LRU for set 'i' has been initialized
-            # for m in hitway_data + victimway_data:  # Combine both lists for processing
-            #     if m["Set"] == i:
-            #         initial_state = m['LRUstate'] if m['LRUstate'] is not None else 0
-            #         self.lru[i] = TrueLRU(self.ways, initial_state)
-            #         initialized = True
-            #         break  # break the inner loop once LRU for set 'i' is initialized
-            if not initialized:  # if the LRU for set 'i' was not initialized befor ( in iner loop)
+            if policy == "TrueLRU":
                 self.lru[i] = TrueLRU(self.ways, 0)
+            elif policy == "PLRU":
+                self.lru[i] = PLRUCache(self.ways)
+                self.lru[i]._assign_indices(self.lru[i].root, [0])
+            else:
+                raise ValueError(f"Unsupported policy: {policy}")
 
             
     @staticmethod
@@ -161,39 +157,36 @@ class Memory:
             'set': int(set_, 2),
             'offset': int(offset, 2)
         }
-
     def access(self, address):
         details = self.extract(address)
         current_set = self.cache[details['set']]
-        
-        lru_state = self.lru[details['set']].state_reg
 
-        ### Check for hit
+        # Check for hit
         hit_keys = [key for key in current_set.keys() if key[0] == details['tag']]
         if hit_keys:
             # there should only be one hit, we take the first key
             hit_key = hit_keys[0]
             _, way = hit_key
-            self.lru[details['set']].hit(way)
-            # print(f"Hit occurred for address {address}. Set: {details['set']}, Hitway: {way}, LRU state: {lru_state}")
-
+            self.lru[details['set']].access(way)
+            
+            
             #===============================================
             #Check if the Verilator HitWay is equal to Python
             #===============================================
-            # for d in hitway_data:
-            #     if d['Address'] == address and d['Set'] == details['set']:
-            #         if d['HitWay'] == way:
-            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Equal")
-            #         else:
-            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Not Equal")
-            #         break  # exit the loop once we've found a match
+            
+            for d in hitway_data:
+                if d['Address'] == address and d['Set'] == details['set']:
+                    if d['HitWay'] == way:
+                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Equal")
+                    else:
+                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Not Equal")
+                    break  # exit the loop once we've found a match
             
             
-           
-            # print(f"Hit occurred for address {address}. Set: {details['set']}, HitWay: {way}, LRU state: {lru_state}")      # to print when hit happen   
+
             return "Hit", way, ""
-        
-        ### check for miss
+
+        # check for miss
         else:
             # On a miss, get the LRU way to replace
             replace_way = self.lru[details['set']].way()
@@ -204,29 +197,112 @@ class Memory:
                 eviction_status = "eviction"
             else:
                 eviction_status = ""
-            
+
             # Update cache with new block
             current_set[(details['tag'], replace_way)] = details['tag']
-            self.lru[details['set']].miss()  # Inform LRU of a miss
+            self.lru[details['set']].access(replace_way)
             
             #===============================================
             #Check if the Verilator VictimWay is equal to Python
             #===============================================
            
-            for data in victimway_data:
-
-                if (data['Address'] == address) and (data['Set'] == details['set']): 
-                    if (data['VictimWay']  == replace_way):
-                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Equal")
-                    else:
-                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Not Equal")
-                    break 
+            # for data in victimway_data:
+            #     if (data['Address'] == address) and (data['Set'] == details['set']): 
+            #         if (data['VictimWay']  == replace_way):
+            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Equal")
+            #         else:
+            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Not Equal")
+            #         break 
                
                 
             # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}, LRU state: {lru_state}")     #to print when victim happen
             return "Miss", replace_way, eviction_status
             
+#=======================================================================================
+#  PseudoRU
+#=======================================================================================
+class TreeNode:
+    def __init__(self):
+        self.bit = 0
+        self.left = None
+        self.right = None
+        self.parent = None
+        self.index = None  # Only for leaf nodes, represents cache line index
 
+class PLRUCache:
+    def __init__(self, size=4):
+        self.size = size
+        # self.cache = [None] * size
+        self.root = self._build_tree(size)
+
+    def _build_tree(self, size):
+        nodes = [TreeNode() for _ in range(size)]
+        while len(nodes) > 1:
+            parents = []
+            for i in range(0, len(nodes), 2):
+                parent = TreeNode()
+                parent.left = nodes[i]
+                parent.right = nodes[i + 1] if i + 1 < len(nodes) else None
+                nodes[i].parent = parent
+                if parent.right:
+                    parent.right.parent = parent
+                parents.append(parent)
+            nodes = parents
+        return nodes[0]
+
+    def _assign_indices(self, node, index=0):
+        if node:
+            if not node.left and not node.right:  # Leaf node
+                node.index = index[0]
+                index[0] += 1
+            self._assign_indices(node.left, index)
+            self._assign_indices(node.right, index)
+
+    def access(self, touch_way):
+        self.get_next_state(touch_way)
+    
+    #=======================================================================================
+    # get_next_state
+    #======================================================================================= 
+
+    def get_next_state(self, index):
+        leaf = self._get_leaf(self.root, index)
+        while leaf.parent:
+            parent = leaf.parent
+            if parent.left == leaf:
+                parent.bit = 1
+            else:
+                parent.bit = 0
+            leaf = parent
+    #=======================================================================================
+    #get_replace_way
+    #=======================================================================================
+    
+    def get_replace_way(self):
+        node = self.root
+        while node.left or node.right:  # While not a leaf node
+            if node.bit == 0 and node.left:
+                node = node.left
+            else:
+                node = node.right
+        return node.index
+
+    def _get_leaf(self, node, index):
+        if not node:
+            return None
+        if hasattr(node, 'index') and node.index == index:
+            return node
+        left_search = self._get_leaf(node.left, index)
+        if left_search:
+            return left_search
+        return self._get_leaf(node.right, index)
+
+    # def __str__(self):
+    #     return str(self.cache)
+    
+    def way(self):
+        return self.get_replace_way()
+            
 
 #=======================================================================================
 #  TrueLRU
