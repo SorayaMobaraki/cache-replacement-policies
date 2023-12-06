@@ -478,5 +478,5 @@ else:
     print("Python and verilator outputs are Not equal")
     
 differences = df_python.compare(df_verilator)
-print("Differences:" ,differences)
+# print("Differences:" ,differences)
 
