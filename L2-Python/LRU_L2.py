@@ -1,16 +1,19 @@
 import re
-
+import pandas as pd
 from collections import OrderedDict
 
 
 #=======================================================================================
 # Extract Address & Hit and Victim Way
 #=======================================================================================         
-                
-                
+                                 
 # Open the Verilator output file and read its content
-with open("Loop-ROI.txt", "r") as f:
+with open("loop-ROI.txt", "r") as f:
     lines = f.readlines()
+with open("python_output.txt", "w") as file:
+    pass
+with open("Verilator_output.txt", "w") as file:
+    pass
 
 
 # Regular expression patterns
@@ -56,7 +59,7 @@ for line in lines:
                 mapping_str = f"{input_addresses[key]} -> VictimWayL2: {way}, Set: {set_val}, Tag: {tag_val}"
             
             # with open('address1.txt', 'a') as file:
-            #     file.write(str(input_addresses[key]) + '\n')
+            #     file.write(str(input_addresses[key]) + '\n')ِ
             
         
             victimway_data.append({            # a list of dictionary to extract the address, set, tag, and Lru state of the victimway
@@ -95,7 +98,7 @@ for line in lines:
             address_only_list.append(input_addresses[key])
 
 
-with open("address_with_hitway.txt", "w") as f:      # Write the input addresses and their tags and set the number. Also, the initial LRU state of each set number
+with open("Verilator_output.txt", "w") as f:      # Write the input addresses and their tags and set the number. Also, the initial LRU state of each set number
     for mapping in sequential_mapping:
         f.write(mapping + "\n")
 with open("addresses.txt", "w") as f:
@@ -103,17 +106,23 @@ with open("addresses.txt", "w") as f:
         f.write(address + "\n")
 
  
+ 
+ 
+
+
+
+
 #=======================================================================================
 # MEMORY
 #=======================================================================================                             
 class Memory:
-    def __init__(self, policy="PLRU"):
+    def __init__(self, policy="TrueLRU"):
         self.total_size = 512 * 1024  # 512 kBytes
         self.block_size = 64  # Bytes
         self.set_number = 1024
         self.ways = 8  # Set associative
 
-        self.victim_hit_file = open("address_with_hitway.txt", "r")
+        self.victim_hit_file = open("Verilator_output.txt", "r")
         
         # Calculate number of blocks
         self.blocks = self.total_size / self.block_size
@@ -171,17 +180,15 @@ class Memory:
             
             
             #===============================================
-            #Check if the Verilator HitWay is equal to Python
+            # Write the HitWay of the Python in the File
             #===============================================
             
             for d in hitway_data:
-                if d['Address'] == address and d['Set'] == details['set']:
-                    if d['HitWay'] == way:
-                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Equal")
-                    else:
-                        print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator HitWay: {d['HitWay'] }, Python HitWay: {way} -> Not Equal")
+                if (d['Address'] == address and d['Set'] == details['set']):
+                    with open("python_output.txt", 'a') as f:  # Open in append mode
+                        f.write(f"{address} -> HitWay: {way}, Set: {details['set']}, Tag: {d['Tag']}\n")
                     break  # exit the loop once we've found a match
-            
+                    
             
 
             return "Hit", way, ""
@@ -203,21 +210,25 @@ class Memory:
             self.lru[details['set']].access(replace_way)
             
             #===============================================
-            #Check if the Verilator VictimWay is equal to Python
+            # Write the VictimWay of the Python in the File
             #===============================================
            
-            # for data in victimway_data:
-            #     if (data['Address'] == address) and (data['Set'] == details['set']): 
-            #         if (data['VictimWay']  == replace_way):
-            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Equal")
-            #         else:
-            #             print(f"Address: {address}, Set: {details['set']}, Tag: {details['tag']}, Verilator VictimWayL2: {data['VictimWay'] }, Python replace_way: {replace_way} -> Not Equal")
-            #         break 
+            for data in victimway_data:
+                if (data['Address'] == address) and (data['Set'] == details['set']): 
+                    with open("python_output.txt", 'a') as fi:  # Open in append mode
+                        fi.write(f"{address} -> VictimWayL2: {replace_way}, Set: {details['set']}, Tag: {data['Tag']}\n")
+                    break 
                
                 
             # print(f"Miss occurred for address {address}. Set: {details['set']}, VictimWayL2: {replace_way}, LRU state: {lru_state}")     #to print when victim happen
             return "Miss", replace_way, eviction_status
             
+            
+     
+
+
+
+
 #=======================================================================================
 #  PseudoRU
 #=======================================================================================
@@ -415,5 +426,57 @@ for address in addresses:
     # print(f"Address: {address}, Set: {result['set']}, {hit_or_miss}, Way: {way}{eviction_message}")
 
 
+#=======================================================================================
+#
+# COMPARISON OF VERILATOR AND PYTHON OUTPUT
+#
+#=======================================================================================
 
+def parse_line(line):
+    parts = line.split(' -> ')
+    address = parts[0]
+    details = parts[1].split(', ')
+    type_part = details[0].split(': ')
+    way_type = type_part[0]
+    way_number = int(type_part[1])
+    set_value = int(details[1].split(': ')[1])
+    tag = int(details[2].split(': ')[1])
+    lru_state = None
+    if len(details) > 3:
+        lru_state = int(details[3].split(': ')[1])
+
+    return address, way_type, way_number, set_value, tag, lru_state
+
+
+data1 = []
+with open('python_output.txt', 'r') as file:
+    for line in file:
+        data1.append(parse_line(line.strip()))
+
+df_python = pd.DataFrame(data1, columns=['Address', 'Type', 'TypeNumber', 'Set', 'Tag', 'LRUstate'])
+df_python = df_python.drop('LRUstate', axis=1)
+
+pd.set_option('display.max_rows', None)
+print("Python Output:")
+print(df_python)
+print("-"*50)
+
+data2 = []
+with open('Verilator_output.txt', 'r') as file:
+    for line in file:
+        data2.append(parse_line(line.strip()))
+
+df_verilator = pd.DataFrame(data2, columns=['Address', 'Type', 'TypeNumber', 'Set', 'Tag', 'LRUstate'])
+df_verilator = df_verilator.drop('LRUstate', axis=1)
+print("Verilator Output:")
+print(df_verilator)
+
+print("*"*50)
+if df_python.equals(df_verilator):
+    print("Python and verilator outputs are equal")
+else:
+    print("Python and verilator outputs are Not equal")
+    
+differences = df_python.compare(df_verilator)
+print("Differences:" ,differences)
 
