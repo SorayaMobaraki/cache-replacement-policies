@@ -1,0 +1,3 @@
+[submodule "Hawkeye/hawkeye-hls"]
+	path = Hawkeye/hawkeye-hls
+	url = https://github.com/SorayaMobaraki/hawkeye-hls.git
