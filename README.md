@@ -1,44 +1,48 @@
-
 # Cache Replacement Policies
 
-A collection of reference implementations and documentation for modern cache replacement policies.
+A collection of reference implementations, hardware prototypes, and documentation for modern cache replacement policies.
 
-This repository provides software implementations of several cache replacement algorithms together with supporting documentation and validation code. It is intended for students, researchers, and computer architects interested in cache memory systems.
+This repository provides software and hardware implementations of several cache replacement algorithms together with supporting documentation, validation frameworks, and experimental code. It is intended for students, researchers, and computer architects interested in cache memory systems, processor microarchitecture, and FPGA-based architectural exploration.
 
 ---
 
-## Repository Contents
+## Implemented Policies
 
-The repository currently includes implementations of the following cache replacement policies:
+This repository currently includes:
 
 - **Least Recently Used (LRU)**
 - **Pseudo Least Recently Used (PLRU)**
 - **Signature-based Hit Predictor (SHiP)**
 - **Hawkeye**
 
-Depending on the policy, implementations may be available in Python and/or C++.
+Depending on the replacement policy, implementations are available in:
+
+- Python
+- C++
+- High-Level Synthesis (HLS)
 
 ---
 
 ## Repository Structure
 
-```
+```text
 cache-replacement-policies/
 
-├── lru and plru/
-│   ├── python/
-│   ├── docs/
+├── LRU-PLRU/
+│   ├── Figures/
+│   ├── Python/
 │   └── README.md
 │
-├── ship/
-│   ├── HLS/
-│   ├── docs/
+├── SHiP/
+│   ├── ship-hls/
+│   ├── Figures/
 │   └── README.md
 │
-├── hawkeye/
-│   ├── python/
-│   ├── cpp/
-│   ├── docs/
+├── Hawkeye/
+│   ├── Python/
+│   ├── Cpp/
+│   ├── hawkeye-hls/
+│   ├── Figures/
 │   └── README.md
 │
 └── README.md
@@ -48,45 +52,65 @@ cache-replacement-policies/
 
 ## Objectives
 
-- Provide clean reference implementations of cache replacement policies.
-- Document the design principles behind each algorithm.
-- Support algorithm comparison and experimentation.
-- Serve as a learning resource for cache memory systems.
+- Provide reference implementations of classical and modern cache replacement policies.
+- Document the design principles and hardware implementation of each algorithm.
+- Support functional validation and algorithm comparison.
+- Provide educational material for studying cache memory systems.
+- Support FPGA- and HLS-based architectural research.
 
 ---
 
-## Policies
+## Implemented Policies
 
-### LRU (Least Recently Used)
+### Least Recently Used (LRU)
 
-A stack-based replacement policy that always evicts the cache block that has not been accessed for the longest time.
-
----
-
-### PLRU (Pseudo Least Recently Used)
-
-A hardware-efficient approximation of LRU commonly used in set-associative caches.
+A stack-based replacement policy that always evicts the cache block that has not been accessed for the longest period of time.
 
 ---
 
-### SHiP (Signature-based Hit Predictor)
+### Pseudo Least Recently Used (PLRU)
 
-A predictor-based cache replacement policy that uses program signatures to improve victim selection.
+A hardware-efficient approximation of LRU that significantly reduces implementation complexity while maintaining comparable performance.
+
+---
+
+### Signature-based Hit Predictor (SHiP)
+
+A predictor-based cache replacement policy that uses program signatures to predict future cache reuse and improve victim selection.
 
 ---
 
 ### Hawkeye
 
-A predictor-based cache replacement policy inspired by Belady's optimal replacement algorithm.
+A predictor-based cache replacement policy inspired by Belady's optimal replacement algorithm. Hawkeye reconstructs optimal replacement decisions for sampled cache sets and uses this information to guide future cache replacement.
 
 ---
 
 ## References
 
-Each policy directory contains references to the original publications and additional documentation.
+Each policy directory contains:
+
+- Background information
+- Algorithm description
+- Original research papers
+- Implementation notes
+- Validation methodology (where applicable)
 
 ---
 
 ## License
 
-MIT License
+This project is released under the MIT License.
+
+---
+
+## Author
+
+**Soraya Mobaraki**
+
+PhD in Computer Architecture  
+University of Montpellier (LIRMM/CNRS)
+
+GitHub: https://github.com/SorayaMobaraki
+
+LinkedIn: *(add your LinkedIn profile URL)*

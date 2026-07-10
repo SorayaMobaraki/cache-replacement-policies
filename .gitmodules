@@ -1,3 +1,7 @@
-[submodule "Hawkeye/hawkeye-hls"]
-	path = Hawkeye/hawkeye-hls
+
+[submodule "SHiP/ship-hls"]
+	path = SHiP/ship-hls
+	url = https://github.com/SorayaMobaraki/ship-hls.git
+[submodule "hawkeye/hawkeye-hls"]
+	path = hawkeye/hawkeye-hls
 	url = https://github.com/SorayaMobaraki/hawkeye-hls.git
