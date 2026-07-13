@@ -2,3 +2,6 @@
 [submodule "Hawkeye"]
 	path = Hawkeye
 	url = https://github.com/SorayaMobaraki/Hawkeye.git
+[submodule "SHiP/ship-hls"]
+	path = SHiP/ship-hls
+	url = https://github.com/SorayaMobaraki/ship-hls.git
